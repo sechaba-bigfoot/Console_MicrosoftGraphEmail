@@ -39,25 +39,16 @@ internal class Program
         string? connectWisePublicKey = "vqf5I1qb9oNjBCBQ";
         string? connectWisePrivateKey = "ibV9fUvNkLP1epv9";
 
-        string[] emailSubjectsTrims = new string[] { "FWD:", "RE:", "FW:" };        //string 
-
-        //GetTicketDTOResponse ticket = await GetTicket(ticketNo);
-        //if (ticket != null)
-        //{
-
-        //}
-
-        //string? ticketNo = ExtractTicketNumberFromImput("Service Ticket #145886 has been submitted to the help desk");
-        //await Run();
+        string[] emailSubjectsTrims = new string[] { "FWD:", "RE:", "FW:" };//string 
 
         ClientSecretCredential _credentials;
         GraphServiceClient _client;
 
-        while (DateTime.UtcNow.Subtract(lastRun).Microseconds > 0)
+        var x = DateTime.UtcNow.Subtract(lastRun).TotalSeconds; //Chang to minutes
+        while (x > 360)
         {
+            await Run();
             lastRun = DateTime.UtcNow;
-
-
         }
 
 
