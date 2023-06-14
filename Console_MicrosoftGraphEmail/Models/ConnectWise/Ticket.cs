@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace Console_MicrosoftGraphEmail.Models.ConnectWise
 {
-    public class GetTicketDTOResponse
+    public class Ticket
     {
         public int id { get; set; }
         public string summary { get; set; }
@@ -38,7 +38,7 @@ namespace Console_MicrosoftGraphEmail.Models.ConnectWise
         public Servicelocation serviceLocation { get; set; }
         public Source source { get; set; }
         public DateTime requiredDate { get; set; }
-        public int budgetHours { get; set; }
+        //public  budgetHours { get; set; }
         public Opportunity opportunity { get; set; }
         public Agreement agreement { get; set; }
         public string severity { get; set; }
@@ -63,53 +63,53 @@ namespace Console_MicrosoftGraphEmail.Models.ConnectWise
         public string closedDate { get; set; }
         public string closedBy { get; set; }
         public bool closedFlag { get; set; }
-        public int actualHours { get; set; }
-        public bool approved { get; set; }
-        public int estimatedExpenseCost { get; set; }
-        public int estimatedExpenseRevenue { get; set; }
-        public int estimatedProductCost { get; set; }
-        public int estimatedProductRevenue { get; set; }
-        public int estimatedTimeCost { get; set; }
-        public int estimatedTimeRevenue { get; set; }
-        public string billingMethod { get; set; }
-        public int billingAmount { get; set; }
-        public int hourlyRate { get; set; }
-        public string subBillingMethod { get; set; }
-        public int subBillingAmount { get; set; }
-        public string subDateAccepted { get; set; }
-        public string dateResolved { get; set; }
-        public string dateResplan { get; set; }
-        public string dateResponded { get; set; }
-        public int resolveMinutes { get; set; }
-        public int resPlanMinutes { get; set; }
-        public int respondMinutes { get; set; }
-        public bool isInSla { get; set; }
-        public int knowledgeBaseLinkId { get; set; }
-        public string resources { get; set; }
-        public int parentTicketId { get; set; }
-        public bool hasChildTicket { get; set; }
-        public bool hasMergedChildTicketFlag { get; set; }
-        public string knowledgeBaseLinkType { get; set; }
-        public string billTime { get; set; }
-        public string billExpenses { get; set; }
-        public string billProducts { get; set; }
-        public string predecessorType { get; set; }
-        public int predecessorId { get; set; }
-        public bool predecessorClosedFlag { get; set; }
-        public int lagDays { get; set; }
-        public bool lagNonworkingDaysFlag { get; set; }
-        public DateTime estimatedStartDate { get; set; }
-        public int duration { get; set; }
-        public Location location { get; set; }
-        public Department department { get; set; }
-        public string mobileGuid { get; set; }
-        public Sla sla { get; set; }
-        public string slaStatus { get; set; }
-        public Currency currency { get; set; }
-        public Mergedparentticket mergedParentTicket { get; set; }
-        public string[] integratorTags { get; set; }
-        public _Info23 _info { get; set; }
-        public Customfield[] customFields { get; set; }
+        //public int actualHours { get; set; }
+        //public bool approved { get; set; }
+        //public int estimatedExpenseCost { get; set; }
+        //public int estimatedExpenseRevenue { get; set; }
+        //public int estimatedProductCost { get; set; }
+        //public int estimatedProductRevenue { get; set; }
+        //public int estimatedTimeCost { get; set; }
+        //public int estimatedTimeRevenue { get; set; }
+        //public string billingMethod { get; set; }
+        //public int billingAmount { get; set; }
+        //public int hourlyRate { get; set; }
+        //public string subBillingMethod { get; set; }
+        //public int subBillingAmount { get; set; }
+        //public string subDateAccepted { get; set; }
+        //public string dateResolved { get; set; }
+        //public string dateResplan { get; set; }
+        //public string dateResponded { get; set; }
+        //public int resolveMinutes { get; set; }
+        //public int resPlanMinutes { get; set; }
+        //public int respondMinutes { get; set; }
+        //public bool isInSla { get; set; }
+        //public int knowledgeBaseLinkId { get; set; }
+        //public string resources { get; set; }
+        //public int parentTicketId { get; set; }
+        //public bool hasChildTicket { get; set; }
+        //public bool hasMergedChildTicketFlag { get; set; }
+        //public string knowledgeBaseLinkType { get; set; }
+        //public string billTime { get; set; }
+        //public string billExpenses { get; set; }
+        //public string billProducts { get; set; }
+        //public string predecessorType { get; set; }
+        //public int predecessorId { get; set; }
+        //public bool predecessorClosedFlag { get; set; }
+        //public int lagDays { get; set; }
+        //public bool lagNonworkingDaysFlag { get; set; }
+        //public DateTime estimatedStartDate { get; set; }
+        //public int duration { get; set; }
+        //public Location location { get; set; }
+        //public Department department { get; set; }
+        //public string mobileGuid { get; set; }
+        //public Sla sla { get; set; }
+        //public string slaStatus { get; set; }
+        //public Currency currency { get; set; }
+        //public Mergedparentticket mergedParentTicket { get; set; }
+        //public string[] integratorTags { get; set; }
+        //public _Info23 _info { get; set; }
+        //public Customfield[] customFields { get; set; }
     }
 
     public class Board
