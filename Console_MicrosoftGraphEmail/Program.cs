@@ -98,6 +98,8 @@ internal class Program
         MailFolder folderToMoveTo = null;
         List<Message> messageList = new List<Message>();
         List<Ticket> ticketList = new List<Ticket>();
+        Board boardToMonitor = null;
+
 
         while (true)
         {
@@ -127,6 +129,9 @@ internal class Program
             //1.Get all the information needed
             folderToMonitor = await GetMailFolderAsync(emailToMonitor, folderToMonitorName);
             folderToMoveTo = await GetMailFolderAsync(emailToMonitor, folderToMoveToName);
+
+            List<Board> boards = await _connectWiseService.GetServiceBoards();
+            boardToMonitor = boards.FirstOrDefault(b => b.name == connectWiseConfigs.ServiceBoard);
             messageList = await GetUserEmails(emailToMonitor);
             ticketList = await _connectWiseService.GetServiceTickets();
 
@@ -281,8 +286,8 @@ internal class Program
         {
             List<string> emailCorrespondents = new List<string>
             {
-                email.Sender.EmailAddress.Address,
-                email.From.EmailAddress.Address
+                email.Sender?.EmailAddress.Address,
+                email.From?.EmailAddress.Address
             };
 
             foreach (Recipient cr in email.CcRecipients)
@@ -314,6 +319,13 @@ internal class Program
             {
                 CustomLogger.WriteNewLog(fileLogPath, $"(Problem) => Cannot find the folder {folderToMoveToName} in {emailToMonitor} email box ");
                 CustomLogger.WriteInLog(fileLogPath, $"(Solution) => Either change the folder name in your configurations to a folder that exists in the monitored email. If the promblems persisits contact support.");
+                return true;
+            }
+
+            if (boardToMonitor == null)
+            {
+                CustomLogger.WriteNewLog(fileLogPath, $"(Problem) => Cannot find the service board {connectWiseConfigs.ServiceBoard}");
+                CustomLogger.WriteInLog(fileLogPath, $"(Solution) => Change the service board name in your configurations to one that exists in {connectWiseConfigs.Company}. If the promblems persisits contact support.");
                 return true;
             }
             return false;

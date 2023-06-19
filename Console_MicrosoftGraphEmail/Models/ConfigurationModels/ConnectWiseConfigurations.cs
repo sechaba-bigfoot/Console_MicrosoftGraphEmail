@@ -13,5 +13,6 @@ namespace Console_MicrosoftGraphEmail.Models.ConfigurationModels
         public string Company { get; set; }
         public string PublicKey { get; set; }
         public string PrivateKey { get; set; }
+        public string ServiceBoard { get; set; }
     }
 }

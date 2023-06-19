@@ -10,5 +10,6 @@ namespace Console_MicrosoftGraphEmail.Services
     public interface IConnectWiseService
     {
         Task<List<Ticket>> GetServiceTickets();
+        Task<List<Board>> GetServiceBoards();
     }
 }

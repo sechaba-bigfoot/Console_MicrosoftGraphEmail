@@ -6,6 +6,7 @@ using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -19,6 +20,7 @@ namespace Console_MicrosoftGraphEmail.Services
         private string privateKey;
         private string clientId;
         private string server;
+        private string serviveBoard;
 
         public ConnectWiseService(IOptions<ConnectWiseConfigurations> ConnectWiseOptions)
         {
@@ -28,10 +30,12 @@ namespace Console_MicrosoftGraphEmail.Services
             privateKey = _connectWiseConfig.PrivateKey;
             clientId = _connectWiseConfig.ClientId;
             server = _connectWiseConfig.Server;
+            serviveBoard = _connectWiseConfig.ServiceBoard;
         }
 
         public async Task<List<Ticket>> GetServiceTickets()
         {
+            List<Ticket> tickets = new List<Ticket>();
             byte[] plainTextBytes = Encoding.UTF8.GetBytes($"{company}+{publicKey}:{privateKey}");
             string authorization = Convert.ToBase64String(plainTextBytes);
 
@@ -43,28 +47,60 @@ namespace Console_MicrosoftGraphEmail.Services
                 client.DefaultRequestHeaders.Add("Cache-Control", "no-cache");
                 client.DefaultRequestHeaders.Add("Authorization", $"Basic {authorization}");
 
-                HttpResponseMessage response = await client.GetAsync("https://cw.doneit.co.za/v4_6_release/apis/3.0/service/tickets");
+                HttpResponseMessage response = await client.GetAsync("https://cw.doneit.co.za/v4_6_release/apis/3.0/service/tickets?pageSize=1000");
                 string stringContent = await response.Content.ReadAsStringAsync();
 
                 if (response.IsSuccessStatusCode)
                 {
                     try
                     {
-                        List<Ticket> tickets = JsonConvert.DeserializeObject<List<Ticket>>(stringContent);
-                        return tickets;
+                        tickets = JsonConvert.DeserializeObject<List<Ticket>>(stringContent);
                     }
                     catch (Exception)
                     {
 
-                        throw;
                     }
                 }
 
             }
 
-            return null;
+            return tickets;
         }
 
-        
+        public async Task<List<Board>> GetServiceBoards()
+        {
+            List<Board> boards = new List<Board>();
+
+            byte[] plainTextBytes = Encoding.UTF8.GetBytes($"{company}+{publicKey}:{privateKey}");
+            string authorization = Convert.ToBase64String(plainTextBytes);
+
+            using (HttpClient client = new HttpClient())
+            {
+                client.DefaultRequestHeaders.Clear();
+                client.BaseAddress = new Uri($"https://{server}/v4_6_release/apis/3.0");
+                client.DefaultRequestHeaders.Add("clientId", clientId);
+                client.DefaultRequestHeaders.Add("Cache-Control", "no-cache");
+                client.DefaultRequestHeaders.Add("Authorization", $"Basic {authorization}");
+
+                HttpResponseMessage response = await client.GetAsync("https://cw.doneit.co.za/v4_6_release/apis/3.0/service/boards?pageSize=1000");
+                string stringContent = await response.Content.ReadAsStringAsync();
+
+                if (response.IsSuccessStatusCode)
+                {
+                    try
+                    {
+                        boards = JsonConvert.DeserializeObject<List<Board>>(stringContent);
+                    }
+                    catch (Exception)
+                    {
+
+                    }
+                }
+
+            }
+            return boards;
+
+        }
+
     }
 }

@@ -101,7 +101,7 @@ namespace Console_MicrosoftGraphEmail.Models.ConnectWise
         //public DateTime estimatedStartDate { get; set; }
         //public int duration { get; set; }
         //public Location location { get; set; }
-        //public Department department { get; set; }
+        public Department department { get; set; }
         //public string mobileGuid { get; set; }
         //public Sla sla { get; set; }
         //public string slaStatus { get; set; }
