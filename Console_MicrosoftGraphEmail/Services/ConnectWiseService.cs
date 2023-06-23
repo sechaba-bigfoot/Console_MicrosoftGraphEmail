@@ -1,9 +1,11 @@
-﻿using Console_MicrosoftGraphEmail.Models.ConfigurationModels;
+﻿using Console_MicrosoftGraphEmail.Helpers;
+using Console_MicrosoftGraphEmail.Models.ConfigurationModels;
 using Console_MicrosoftGraphEmail.Models.ConnectWise;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Options;
 using Newtonsoft.Json;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
@@ -14,23 +16,88 @@ namespace Console_MicrosoftGraphEmail.Services
 {
     public class ConnectWiseService :IConnectWiseService
     {
-        private readonly ConnectWiseConfigurations _connectWiseConfig;
+        private readonly ConnectWiseConfigurations _connectWiseConfigs;
+        private readonly ApplicationConfigurations _applicationConfigs;
+
         private string company;
         private string publicKey;
         private string privateKey;
         private string clientId;
         private string server;
         private string serviveBoard;
+        string fileLogPath = Directory.GetCurrentDirectory() + "/log.txt";
+        string fileErrorLogPath = Directory.GetCurrentDirectory() + "/Errors.txt";
 
-        public ConnectWiseService(IOptions<ConnectWiseConfigurations> ConnectWiseOptions)
+
+        public ConnectWiseService(IOptions<ConnectWiseConfigurations> ConnectWiseOptions,
+            IOptions<ApplicationConfigurations> ApplicationOpions)
         {
-            _connectWiseConfig = ConnectWiseOptions.Value;
-            company = _connectWiseConfig.Company;
-            publicKey = _connectWiseConfig.PublicKey;
-            privateKey = _connectWiseConfig.PrivateKey;
-            clientId = _connectWiseConfig.ClientId;
-            server = _connectWiseConfig.Server;
-            serviveBoard = _connectWiseConfig.ServiceBoard;
+            _connectWiseConfigs = ConnectWiseOptions.Value;
+            _applicationConfigs = ApplicationOpions.Value;
+
+            company = _connectWiseConfigs.Company;
+            publicKey = _connectWiseConfigs.PublicKey;
+            privateKey = _connectWiseConfigs.PrivateKey;
+            clientId = _connectWiseConfigs.ClientId;
+            server = _connectWiseConfigs.Server;
+            serviveBoard = _connectWiseConfigs.ServiceBoard;
+        }
+
+        public async Task<List<Ticket>> GetServiceTickets(string serviveBoard, string summary)
+        {
+            List<Ticket> tickets = new List<Ticket>();
+            byte[] plainTextBytes = Encoding.UTF8.GetBytes($"{company}+{publicKey}:{privateKey}");
+            string authorization = Convert.ToBase64String(plainTextBytes);
+            string conditions = $"Board/Name=\"{serviveBoard}\" AND Summary=\"{summary}\" AND Status/Name!= \" >Closed\"";
+
+            using (HttpClient client = new HttpClient())       
+            {
+                client.DefaultRequestHeaders.Clear();
+                client.BaseAddress = new Uri($"https://{server}/v4_6_release/apis/3.0");
+                client.DefaultRequestHeaders.Add("clientId", clientId);
+                client.DefaultRequestHeaders.Add("Cache-Control", "no-cache");
+                client.DefaultRequestHeaders.Add("Authorization", $"Basic {authorization}");
+
+                string query = $"https://cw.doneit.co.za/v4_6_release/apis/3.0/service/tickets?conditions={conditions}&pageSize=1000";
+
+                HttpResponseMessage response = await client.GetAsync(query);
+                string stringContent = await response.Content.ReadAsStringAsync();
+
+                if (response.IsSuccessStatusCode)
+                {
+                    try
+                    {
+                        tickets = JsonConvert.DeserializeObject<List<Ticket>>(stringContent);
+                    }
+                    catch (Exception ex)
+                    {
+                        if (_applicationConfigs.ShowDetailedLog)
+                        {
+                            string message = "Unexpected result while retrieveing tickets with following query string.";
+                            CustomLogger.WriteNewLog(fileErrorLogPath, message);
+                            CustomLogger.WriteNewLog(fileErrorLogPath, query);
+                            CustomLogger.WriteNewLog(fileErrorLogPath, ex.StackTrace);
+
+                        }
+             
+                    }
+                }
+                else
+                {
+                    if (_applicationConfigs.ShowDetailedLog)
+                    {
+                        ConnectWisteErrorResponse error = JsonConvert.DeserializeObject<ConnectWisteErrorResponse>(stringContent);
+                        string message = "Unexpected result while retrieveing tickets with following query string.";
+                        CustomLogger.WriteNewLog(fileErrorLogPath, message);
+                        CustomLogger.WriteNewLog(fileErrorLogPath, query);
+                        CustomLogger.WriteNewLog(fileErrorLogPath, $"API response => {error.Message}");
+                        CustomLogger.WriteNewLog(fileErrorLogPath, "Moving on..");
+                    }
+                }
+
+            }
+
+            return tickets;
         }
 
         public async Task<List<Ticket>> GetServiceTickets()
@@ -47,7 +114,8 @@ namespace Console_MicrosoftGraphEmail.Services
                 client.DefaultRequestHeaders.Add("Cache-Control", "no-cache");
                 client.DefaultRequestHeaders.Add("Authorization", $"Basic {authorization}");
 
-                HttpResponseMessage response = await client.GetAsync("https://cw.doneit.co.za/v4_6_release/apis/3.0/service/tickets?pageSize=1000");
+                string query = "https://cw.doneit.co.za/v4_6_release/apis/3.0/service/tickets?pageSize=1000";
+                HttpResponseMessage response = await client.GetAsync(query);
                 string stringContent = await response.Content.ReadAsStringAsync();
 
                 if (response.IsSuccessStatusCode)
@@ -56,7 +124,7 @@ namespace Console_MicrosoftGraphEmail.Services
                     {
                         tickets = JsonConvert.DeserializeObject<List<Ticket>>(stringContent);
                     }
-                    catch (Exception)
+                    catch (Exception ex)
                     {
 
                     }
@@ -82,7 +150,8 @@ namespace Console_MicrosoftGraphEmail.Services
                 client.DefaultRequestHeaders.Add("Cache-Control", "no-cache");
                 client.DefaultRequestHeaders.Add("Authorization", $"Basic {authorization}");
 
-                HttpResponseMessage response = await client.GetAsync("https://cw.doneit.co.za/v4_6_release/apis/3.0/service/boards?pageSize=1000");
+                string query = "https://cw.doneit.co.za/v4_6_release/apis/3.0/service/boards?pageSize=1000";
+                HttpResponseMessage response = await client.GetAsync(query);
                 string stringContent = await response.Content.ReadAsStringAsync();
 
                 if (response.IsSuccessStatusCode)
@@ -91,9 +160,15 @@ namespace Console_MicrosoftGraphEmail.Services
                     {
                         boards = JsonConvert.DeserializeObject<List<Board>>(stringContent);
                     }
-                    catch (Exception)
+                    catch (Exception ex)
                     {
-
+                        if (_applicationConfigs.ShowDetailedLog)
+                        {
+                            string message = "Unexpected result while retrieveing boards with following query string.";
+                            CustomLogger.WriteNewLog(fileErrorLogPath, message);
+                            CustomLogger.WriteNewLog(fileErrorLogPath, query);
+                            CustomLogger.WriteNewLog(fileErrorLogPath, ex.StackTrace);
+                        }
                     }
                 }
 

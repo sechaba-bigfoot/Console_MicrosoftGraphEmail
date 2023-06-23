@@ -13,12 +13,12 @@ namespace Console_MicrosoftGraphEmail.Helpers
         {
             using (StreamWriter writer = new StreamWriter(logFilePath, true))
             {
-                Console.WriteLine(message);
-
                 DateTime dateTime = DateTime.UtcNow;
-                writer.WriteLine($"[{dateTime.ToShortDateString()} | {dateTime.ToShortTimeString()}] Log");
-                writer.WriteLine(">>------------------------------------------------");
-                writer.WriteLine($"{message}");
+
+                string log = $"[{dateTime.ToShortDateString()} | {dateTime.ToShortTimeString()}] {message}";
+                Console.WriteLine(log);
+
+                writer.WriteLine(log);
             }
         }
 
@@ -26,9 +26,11 @@ namespace Console_MicrosoftGraphEmail.Helpers
         {
             using (StreamWriter writer = new StreamWriter(logFilePath, true))
             {
-                Console.WriteLine(message);
+                DateTime dateTime = DateTime.UtcNow;
+                string log = $"[{dateTime.ToShortDateString()} | {dateTime.ToShortTimeString()}] {message}";
+                Console.WriteLine(log);
 
-                writer.WriteLine($"{message}");
+                writer.WriteLine($"{log}");
             }
         }
 
@@ -38,10 +40,11 @@ namespace Console_MicrosoftGraphEmail.Helpers
             {
                 DateTime dateTime = DateTime.UtcNow;
 
-                string toWrite = $"NEW LOG STARTED [{dateTime.ToShortDateString()} | {dateTime.ToShortTimeString()}] ||||||||||||||||||||||||||||||||||||||||||||||||||||||| ";
+                string toWrite = $"[{dateTime.ToShortDateString()} | {dateTime.ToShortTimeString()}] NEW LOG STARTED ";
 
                 Console.WriteLine(toWrite);
                 writer.WriteLine($"{toWrite}");
+                writer.WriteLine($"");
             }
         }
     }
