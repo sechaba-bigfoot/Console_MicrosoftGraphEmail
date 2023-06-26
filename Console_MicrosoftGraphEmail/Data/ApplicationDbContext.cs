@@ -1,15 +1,16 @@
-﻿using Console_MicrosoftGraphEmail.Models.ConnectWise;
+﻿using Console_MicrosoftGraphEmail.Models.ConfigurationModels;
+using Console_MicrosoftGraphEmail.Models.ConnectWise;
 using Microsoft.EntityFrameworkCore;
-
+using Microsoft.Extensions.Options;
 
 namespace Console_MicrosoftGraphEmail.Data
 {
     public class ApplicationDbContext : DbContext
     {
-
-        public ApplicationDbContext(DbContextOptions options) : base(options)
+        string customTicketsViewOrTableName;
+        public ApplicationDbContext(DbContextOptions options, IOptions<ApplicationConfigurations> applicationOpions) : base(options)
         {
-
+            customTicketsViewOrTableName = applicationOpions.Value.TableOrViewName;
         }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -17,7 +18,7 @@ namespace Console_MicrosoftGraphEmail.Data
             modelBuilder.Entity<CustomTicket>(entity =>
             {
                 entity.HasNoKey();
-                entity.ToView("Tickets");
+                entity.ToView(customTicketsViewOrTableName);
             });
             base.OnModelCreating(modelBuilder);
         }

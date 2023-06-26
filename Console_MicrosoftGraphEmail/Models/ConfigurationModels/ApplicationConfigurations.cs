@@ -14,6 +14,6 @@ namespace Console_MicrosoftGraphEmail.Models.ConfigurationModels
         public int IntervalRunsInMinutes { get; set; }
         public string MailFolderToMoveTo { get; set; }
         public bool ShowDetailedLog { get ; set; }
-        public string DbConnectionString { get; set; }
+        public string TableOrViewName { get; set; }
     }
 }

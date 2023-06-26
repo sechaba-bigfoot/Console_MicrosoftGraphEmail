@@ -108,16 +108,6 @@ internal class Program
         List<CustomTicket> ticketList = new List<CustomTicket>();
         Board boardToMonitor = null;
 
-        try
-        {
-            
-        }
-        catch (Exception)
-        {
-
-            throw;
-        }
-
 
         while (true)
         {
