@@ -11,13 +11,15 @@ using System.Linq;
 using System.Net;
 using System.Text;
 using System.Threading.Tasks;
+using Console_MicrosoftGraphEmail.Data;
 
 namespace Console_MicrosoftGraphEmail.Services
 {
-    public class ConnectWiseService :IConnectWiseService
+    public class ConnectWiseService : IConnectWiseService
     {
         private readonly ConnectWiseConfigurations _connectWiseConfigs;
         private readonly ApplicationConfigurations _applicationConfigs;
+        private readonly ApplicationDbContext _dbContext;
 
         private string company;
         private string publicKey;
@@ -30,10 +32,11 @@ namespace Console_MicrosoftGraphEmail.Services
 
 
         public ConnectWiseService(IOptions<ConnectWiseConfigurations> ConnectWiseOptions,
-            IOptions<ApplicationConfigurations> ApplicationOpions)
+            IOptions<ApplicationConfigurations> ApplicationOpions, ApplicationDbContext dbContext)
         {
             _connectWiseConfigs = ConnectWiseOptions.Value;
             _applicationConfigs = ApplicationOpions.Value;
+            _dbContext = dbContext;
 
             company = _connectWiseConfigs.Company;
             publicKey = _connectWiseConfigs.PublicKey;
@@ -41,6 +44,27 @@ namespace Console_MicrosoftGraphEmail.Services
             clientId = _connectWiseConfigs.ClientId;
             server = _connectWiseConfigs.Server;
             serviveBoard = _connectWiseConfigs.ServiceBoard;
+        }
+
+
+        public CustomTicket GetServiceTicket
+            (string serviveBoard, string summary, List<string> correspondents)
+        {
+
+            foreach (var ticket in _dbContext.Tickets)
+            {
+                List<string> ticketCorrespondents = ticket.Correspondents;
+                //ticketCorrespondents.Add(ticket.ContactEmail);
+
+                bool a = ticket.BoardName.Equals(serviveBoard);
+                bool b = ticket.Summary.Equals(summary);
+                bool c = ticket.Correspondents.OrderDescending().SequenceEqual(correspondents.OrderDescending());
+
+                if (a && b && c) return ticket;
+      
+            }
+
+            return null;
         }
 
         public async Task<List<Ticket>> GetServiceTickets(string serviveBoard, string summary)
@@ -176,6 +200,7 @@ namespace Console_MicrosoftGraphEmail.Services
             return boards;
 
         }
+
 
     }
 }

@@ -14,15 +14,15 @@ namespace Console_MicrosoftGraphEmail.Data
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
-            modelBuilder.Entity<CustomTicketView>(entity =>
+            modelBuilder.Entity<CustomTicket>(entity =>
             {
                 entity.HasNoKey();
-                entity.ToView("MyView");
+                entity.ToView("Tickets");
             });
             base.OnModelCreating(modelBuilder);
         }
 
-        public DbSet<CustomTicketView> Tickets { get; set; }
+        public DbSet<CustomTicket> Tickets { get; set; }
 
     }
 }

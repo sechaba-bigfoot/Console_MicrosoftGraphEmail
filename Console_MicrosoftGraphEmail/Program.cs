@@ -22,8 +22,6 @@ internal class Program
         IServiceProvider _serviceProvider = null;
         IConnectWiseService _connectWiseService = null;
 
-        ApplicationDbContext _dbContext = null;
-
         ApplicationConfigurations logicConfigs = null;
         ConnectWiseConfigurations connectWiseConfigs = null;
         GraphMailConfigurations graphMailConfigs = null;
@@ -47,24 +45,24 @@ internal class Program
         try
         {
 
-           _configuration = new ConfigurationBuilder()
-          .SetBasePath(Directory.GetCurrentDirectory())
-          .AddJsonFile("appsettings.json")
-          .Build();
+            _configuration = new ConfigurationBuilder()
+            .SetBasePath(Directory.GetCurrentDirectory())
+            .AddJsonFile("appsettings.json")
+            .Build();
 
             _serviceProvider = new ServiceCollection()
                 .AddSingleton<IConnectWiseService, ConnectWiseService>()
-                .AddDbContext<ApplicationDbContext>(options => options.UseSqlServer("Data Source=DESKTOP-PV5528G;Initial Catalog=_cw;Integrated Security=True;Connect Timeout=30;Encrypt=False;Trust Server Certificate=False;Application Intent=ReadWrite;Multi Subnet Failover=False"))
+                .AddDbContext<ApplicationDbContext>(options => options.UseSqlServer(_configuration.GetValue<string>("ConnectionString")))
                 .AddOptions()
                 .Configure<ApplicationConfigurations>(_configuration.GetSection(nameof(ApplicationConfigurations)))
                 .Configure<ConnectWiseConfigurations>(_configuration.GetSection(nameof(ConnectWiseConfigurations)))
                 .Configure<GraphMailConfigurations>(_configuration.GetSection(nameof(GraphMailConfigurations)))
                 .BuildServiceProvider();
 
+
             logicConfigs = _serviceProvider.GetService<IOptions<ApplicationConfigurations>>().Value;
             connectWiseConfigs = _serviceProvider.GetService<IOptions<ConnectWiseConfigurations>>().Value;
             graphMailConfigs = _serviceProvider.GetService<IOptions<GraphMailConfigurations>>().Value;
-            _dbContext = _serviceProvider.GetService<ApplicationDbContext>();
 
             tenantId = graphMailConfigs.TenantId;
             clientId = graphMailConfigs.ClientId;
@@ -107,7 +105,7 @@ internal class Program
         MailFolder folderToMonitor = null;
         MailFolder folderToMoveTo = null;
         List<Message> messageList = new List<Message>();
-        List<Ticket> ticketList = new List<Ticket>();
+        List<CustomTicket> ticketList = new List<CustomTicket>();
         Board boardToMonitor = null;
 
         try
@@ -163,7 +161,7 @@ internal class Program
                 string runningMessage = $"No problems, application is running.";
 
                 CustomLogger.WriteNewLog(fileLogPath, runningMessage);
-                
+
                 if(detailLogs)
                 CustomLogger.WriteNewLog(fileLogPath, $"Monitoring {messageList.Count} emails in => [{emailToMonitor}].");
 
@@ -171,53 +169,32 @@ internal class Program
                 foreach (Message message in messageList)
                 {
                     string newSubject = ClearSubject(message.Subject);
-                    ticketList = await _connectWiseService.GetServiceTickets(connectWiseConfigs.ServiceBoard, newSubject);
+                    List<string> emailCorrespondents = ReturnEmailsInMessage(message);
 
-                    if (!ticketList.Any())
+                    //2. Find a ticket that matches the email subject and has the same list of correspondents
+                    var ticket = _connectWiseService.GetServiceTicket(connectWiseConfigs.ServiceBoard, newSubject, emailCorrespondents);
+                    if(ticket != null)
                     {
+                        //3. Rename the email to a suited convetion.
+                        //4. Update it in the Graph Mail API.
+                        //5. Move email to specified folder.
+                        message.Subject = $"Existing ticket#{ticket.ServiceRecordId} email - [{ticket.Summary}]";
+                        await UpdateMessage(emailToMonitor, message);
+                        await MoveMessageToFolder(emailToMonitor, message.Id, folderToMoveTo.Id);
+
+                        effectedEmailsCount++;
+
                         if (detailLogs)
-                        CustomLogger.WriteNewLog(fileLogPath, $"Found no matching tickets for email with subject => [{newSubject}]. Moving on...");
+                            CustomLogger.WriteNewLog(fileLogPath, $"Match found for email with subject => [{newSubject}]. Moving on...");
+
+
                     }
                     else
                     {
-                        //2.Loop trough the company tickets
-                        foreach (Ticket ticket in ticketList)
-                        {
-                            if (detailLogs)
-                            CustomLogger.WriteNewLog(fileLogPath, $"Monitoring {messageList.Count} emails in => [{emailToMonitor}].");
-                            
-                            List<string> listOfEmailsInMessage = ReturnEmailsInMessage(message);
-
-                            //2.1 Does the given message subject contain have the ticket summary in it's contents?
-                            //2.2 Does the given message already have the ticket# it's subject?
-                            //2.3 Does the given message in its many correspondents have the email of the person who must be contacted for the ticket?
-
-                            bool subjectMatch = message.Subject.Contains(ticket.summary);
-                            bool emailMatch = listOfEmailsInMessage.Contains(ticket.contactEmailAddress);
-                            //bool subjectHasTicketNo = message.Subject.Contains(keyWord);
-
-                            //bool emailMatch = listOfEmailsInMessage.Contains("sechabamot@gmail.com");//Only for testing
-
-                            if (subjectMatch && emailMatch)
-                            {
-                                //3. Rename the email to a suited convetion.
-                                //4. Update it in the Graph Mail API.
-                                //5. Move email to specified folder.
-
-                                message.Subject = $"Existing ticket#{ticket.id} email - [{ticket.summary}]";
-                                await UpdateMessage(emailToMonitor, message);
-                                await MoveMessageToFolder(emailToMonitor, message.Id, folderToMoveTo.Id);
-
-                                effectedEmailsCount++;
-                                
-                                if (detailLogs)
-                                CustomLogger.WriteNewLog(fileLogPath, $"Match found for email with subject => [{newSubject}]. Moving on...");
-
-
-                            }
-                        }
+                        if (detailLogs)
+                            CustomLogger.WriteNewLog(fileLogPath, $"Found no matching tickets for email with subject => [{newSubject}]. Moving on...");
                     }
-
+                   
                 }
 
                 string noProblemMessage = $"No problems, application ran successfully. Effected emails is => [{effectedEmailsCount}].";
@@ -321,12 +298,17 @@ internal class Program
 
         List<string> ReturnEmailsInMessage(Message email)
         {
+            //email.
             List<string> emailCorrespondents = new List<string>
             {
-                email.Sender?.EmailAddress.Address,
-                email.From?.EmailAddress.Address
+                //email.Sender?.EmailAddress.Address,
+                //email.From?.EmailAddress.Address
             };
 
+            //foreach(Recipient cr in email.ToRecipients)
+            //{
+            //    emailCorrespondents.Add(cr.EmailAddress.Address);
+            //};
             foreach (Recipient cr in email.CcRecipients)
             {
                 emailCorrespondents.Add(cr.EmailAddress.Address);
@@ -382,42 +364,5 @@ internal class Program
         }
 
         #endregion
-
-
-
-        ////2.Loop trough the company tickets
-        //foreach (Ticket ticket in ticketList)
-        //{
-
-        //    foreach (Message message in messageList)
-        //    {
-        //        //Console.WriteLine($"Monitoring {messageList.Count} emails in => [{emailToMonitor}].");
-        //        List<string> listOfEmailsInMessage = ReturnEmailsInMessage(message);
-
-        //        //2.1 Does the given message subject contain have the ticket summary in it's contents?
-        //        //2.2 Does the given message already have the ticket# it's subject?
-        //        //2.3 Does the given message in its many correspondents have the email of the person who must be contacted for the ticket?
-
-        //        bool subjectMatch = message.Subject.Contains(ticket.summary);
-        //        bool subjectHasTicketNo = message.Subject.Contains(keyWord);
-        //        bool emailMatch = listOfEmailsInMessage.Contains(ticket.contactEmailAddress);
-        //        //bool emailMatch = listOfEmailsInMessage.Contains("sechabamot@gmail.com");//Only for testing
-
-        //        if (subjectMatch && emailMatch && !subjectHasTicketNo)
-        //        {
-        //            //3. Rename the email to a suited convetion.
-        //            //4. Update it in the Graph Mail API.
-        //            //5.Move email to specified folder.
-
-        //            message.Subject = $"Existing ticket#{ticket.id} email - [{ticket.summary}]";
-        //            await UpdateMessage(emailToMonitor, message);
-        //            await MoveMessageToFolder(emailToMonitor, message.Id, folderToMoveTo.Id);
-
-        //            effectedEmailsCount++;
-
-        //        }
-
-        //    }
-        //}
     }
 }
