@@ -12,11 +12,20 @@ using Console_MicrosoftGraphEmail.Helpers;
 using System.Text.RegularExpressions;
 using Console_MicrosoftGraphEmail.Data;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Graph.Models.ExternalConnectors;
+using System;
 
 internal class Program
 {
     private static async Task Main(string[] args)
     {
+
+        string fileLogPath = Directory.GetCurrentDirectory() + "/log.txt";
+        string fileErrorLogPath = Directory.GetCurrentDirectory() + "/Errors.txt";
+
+        CustomLogger.StartNewLog(fileLogPath);
+
+        #region Global Properties
 
         IConfiguration _configuration = null;
         IServiceProvider _serviceProvider = null;
@@ -29,8 +38,7 @@ internal class Program
         ClientSecretCredential _credentials = null;
         GraphServiceClient _client = null;
 
-        string fileLogPath = Directory.GetCurrentDirectory() + "/log.txt";
-        string fileErrorLogPath = Directory.GetCurrentDirectory() + "/Errors.txt";
+        string connectionString = "";
         bool detailLogs = false;
 
         string tenantId = "";
@@ -42,63 +50,6 @@ internal class Program
         string folderToMoveToName = "";
         string keyWord = "";
 
-        try
-        {
-
-            _configuration = new ConfigurationBuilder()
-            .SetBasePath(Directory.GetCurrentDirectory())
-            .AddJsonFile("appsettings.json")
-            .Build();
-
-            _serviceProvider = new ServiceCollection()
-                .AddSingleton<IConnectWiseService, ConnectWiseService>()
-                .AddDbContext<ApplicationDbContext>(options => options.UseSqlServer(_configuration.GetValue<string>("ConnectionString")))
-                .AddOptions()
-                .Configure<ApplicationConfigurations>(_configuration.GetSection(nameof(ApplicationConfigurations)))
-                .Configure<ConnectWiseConfigurations>(_configuration.GetSection(nameof(ConnectWiseConfigurations)))
-                .Configure<GraphMailConfigurations>(_configuration.GetSection(nameof(GraphMailConfigurations)))
-                .BuildServiceProvider();
-
-
-            logicConfigs = _serviceProvider.GetService<IOptions<ApplicationConfigurations>>().Value;
-            connectWiseConfigs = _serviceProvider.GetService<IOptions<ConnectWiseConfigurations>>().Value;
-            graphMailConfigs = _serviceProvider.GetService<IOptions<GraphMailConfigurations>>().Value;
-
-            tenantId = graphMailConfigs.TenantId;
-            clientId = graphMailConfigs.ClientId;
-            clientSecrete = graphMailConfigs.ClientSecret;
-
-            emailToMonitor = logicConfigs.EmailToMonitor;
-            folderToMonitorName = logicConfigs.MailFolderToMonitor;
-            folderToMoveToName = logicConfigs.MailFolderToMoveTo;
-            keyWord = logicConfigs.KeyWord;
-
-            _connectWiseService = _serviceProvider.GetService<IConnectWiseService>();
-
-            TokenCredentialOptions options = new TokenCredentialOptions
-            {
-                AuthorityHost = AzureAuthorityHosts.AzurePublicCloud,
-            };
-
-            _credentials = new ClientSecretCredential(tenantId, clientId, clientSecrete, options);
-            _client = new GraphServiceClient(_credentials);
-
-            detailLogs = logicConfigs.ShowDetailedLog;
-        }
-        catch (Exception ex)
-        {
-            string configMessage = $"Something went wrong trying co configure the application. Could not get application running.";
-            string trace = ex.StackTrace;
-
-            //Console.WriteLine(configMessage);
-            //Console.WriteLine(ex);
-
-            CustomLogger.WriteNewLog(fileLogPath, configMessage);
-            CustomLogger.WriteNewLog(fileLogPath, trace);
-        }
-
-        CustomLogger.StartNewLog(fileLogPath);
-
         int failedExecutionCOunt = 0;
         int effectedEmailsCount = 0;
 
@@ -108,25 +59,29 @@ internal class Program
         List<CustomTicket> ticketList = new List<CustomTicket>();
         Board boardToMonitor = null;
 
+        #endregion
 
+        ConfigureApplication();
+
+        //Logical loop..
         while (true)
         {
+            CustomLogger.WriteInLog(fileLogPath, "Loop running", false);
             try
             {
                 if(failedExecutionCOunt < 3)
                 {
                     await Task.Run(StartOrganisingEmails);
-                    Thread.Sleep(new TimeSpan(0, logicConfigs.IntervalRunsInMinutes, 0)); //TODO:Change before publish.
+                    Thread.Sleep(new TimeSpan(0, logicConfigs.IntervalRunsInMinutes, 0));
                 }
             }
             catch (Exception ex)
             {
                 failedExecutionCOunt++;
-                string message = $"Application attempted to run, but failed. Attempts:[{failedExecutionCOunt}]";
 
-                //Console.WriteLine(message);
-                CustomLogger.WriteNewLog(fileLogPath, message);
-                CustomLogger.WriteInLog(fileLogPath, $"{ex.Message}");
+                CustomLogger.WriteInLog(fileLogPath, 
+                    $"Attempted to organise emailes, but failed. Attempts:[{failedExecutionCOunt}]", true);
+                CustomLogger.WriteInLog(fileErrorLogPath, $"{ex.Message}", true);
             }
         }
 
@@ -134,6 +89,8 @@ internal class Program
 
         async void StartOrganisingEmails()
         {
+            CustomLogger.WriteNewLog(fileLogPath, "Now organising emails");
+
             //1.Get all the information needed
             folderToMonitor = await GetMailFolderAsync(emailToMonitor, folderToMonitorName);
             folderToMoveTo = await GetMailFolderAsync(emailToMonitor, folderToMoveToName);
@@ -141,19 +98,13 @@ internal class Program
             List<Board> boards = await _connectWiseService.GetServiceBoards();
             boardToMonitor = boards.FirstOrDefault(b => b.name == connectWiseConfigs.ServiceBoard);
             messageList = await GetUserEmails(emailToMonitor);
-            //ticketList = await _connectWiseService.GetServiceTickets();
 
-            //List<Ticket> ticketList = await GetTickets();
 
             //Are there any problems?
             if (!AnyForProblems())
             {
-                string runningMessage = $"No problems, application is running.";
-
-                CustomLogger.WriteNewLog(fileLogPath, runningMessage);
-
-                if(detailLogs)
-                CustomLogger.WriteNewLog(fileLogPath, $"Monitoring {messageList.Count} emails in => [{emailToMonitor}].");
+                CustomLogger.WriteInLog(fileLogPath, "Mannaged to get all the information needed to organise emails", false);
+                CustomLogger.WriteInLog(fileLogPath, $"Monitoring {messageList.Count} emails in => [{emailToMonitor}].", false);
 
                 //1. Loop through messages
                 foreach (Message message in messageList)
@@ -174,27 +125,25 @@ internal class Program
 
                         effectedEmailsCount++;
 
-                        if (detailLogs)
-                            CustomLogger.WriteNewLog(fileLogPath, $"Match found for email with subject => [{newSubject}]. Moving on...");
+                        CustomLogger.WriteInLog(fileLogPath, $"Match found for email with subject => [{newSubject}]. Moving on...", false);
 
 
                     }
                     else
                     {
-                        if (detailLogs)
-                            CustomLogger.WriteNewLog(fileLogPath, $"Found no matching tickets for email with subject => [{newSubject}]. Moving on...");
+                        CustomLogger.WriteInLog(fileLogPath, $"Found no matching tickets for email with subject => [{newSubject}]. Moving on...", false);
                     }
                    
                 }
 
                 string noProblemMessage = $"No problems, application ran successfully. Effected emails is => [{effectedEmailsCount}].";
-                CustomLogger.WriteNewLog(fileLogPath, noProblemMessage);
-                Console.ReadLine();
+                CustomLogger.WriteInLog(fileLogPath, noProblemMessage, false);
             }
             else
             {
-                string problemMessage = $"Please address above problems-------";
-                CustomLogger.WriteNewLog(fileLogPath, problemMessage);
+
+                string problemMessage = $"Please address above problems before running application again.";
+                CustomLogger.WriteInLog(fileLogPath, problemMessage, false);
 
             }
 
@@ -264,8 +213,7 @@ internal class Program
             }
             catch (Exception ex)
             {
-                if(detailLogs)
-                CustomLogger.WriteInLog(fileErrorLogPath, ex.Message);
+                CustomLogger.WriteInLog(fileErrorLogPath, ex.Message, true);
             }
 
             return messages;
@@ -331,28 +279,122 @@ internal class Program
 
                 string folderMissing = $"(Problem) => Cannot find the folder {folderToMonitorName} in {emailToMonitor} email box.";
 
-                CustomLogger.WriteNewLog(fileLogPath, folderMissing);
-                CustomLogger.WriteInLog(fileLogPath, $"(Solution) => Either change the folder name in your configurations to a folder that exists in the monitored email. If the promblems persisits contact support.");
+                CustomLogger.WriteInLog(fileLogPath, folderMissing, true);
+                CustomLogger.WriteInLog(fileLogPath, $"(Solution) => Either change the folder name in your configurations to a folder that exists in the monitored email. If the promblems persisits contact support.", false);
                 return true;
 
             }
 
             if (folderToMoveTo == null) 
             {
-                CustomLogger.WriteNewLog(fileLogPath, $"(Problem) => Cannot find the folder {folderToMoveToName} in {emailToMonitor} email box ");
-                CustomLogger.WriteInLog(fileLogPath, $"(Solution) => Either change the folder name in your configurations to a folder that exists in the monitored email. If the promblems persisits contact support.");
+                CustomLogger.WriteInLog(fileLogPath, $"(Problem) => Cannot find the folder {folderToMoveToName} in {emailToMonitor} email box.", true);
+                CustomLogger.WriteInLog(fileLogPath, $"(Solution) => Either change the folder name in your configurations to a folder that exists in the monitored email. If the promblems persisits contact support.", false);
                 return true;
             }
 
             if (boardToMonitor == null)
             {
-                CustomLogger.WriteNewLog(fileLogPath, $"(Problem) => Cannot find the service board {connectWiseConfigs.ServiceBoard}");
-                CustomLogger.WriteInLog(fileLogPath, $"(Solution) => Change the service board name in your configurations to one that exists in {connectWiseConfigs.Company}. If the promblems persisits contact support.");
+                CustomLogger.WriteInLog(fileLogPath, $"(Problem) => Cannot find the service board {connectWiseConfigs.ServiceBoard}", false);
+                CustomLogger.WriteInLog(fileLogPath, $"(Solution) => Change the service board name in your configurations to one that exists in {connectWiseConfigs.Company}. If the promblems persisits contact support.", true);
                 return true;
             }
             return false;
         }
 
+        string GetConnectionString()
+        {
+            return _configuration.GetValue<string>("ConnectionString");
+        }
+
+        void ConfigureApplication()
+        {
+            //1.
+            CustomLogger.WriteInLog(fileLogPath, 
+                "Setting up application configurations.", false);
+
+            try
+            {
+
+                _configuration = new ConfigurationBuilder()
+                    .SetBasePath(Directory.GetCurrentDirectory())
+                    .AddJsonFile("appsettings.json")
+                    .Build();
+
+                //2.
+                CustomLogger.WriteInLog(fileLogPath,
+                    "Configurations built successfuly.", false);
+
+                connectionString = GetConnectionString();
+
+
+                if (!string.IsNullOrEmpty(connectionString))
+                {
+                    //3.
+                    CustomLogger.WriteInLog(fileLogPath,
+                        "Database connection string retrieved.", false);
+                }
+         
+
+                _serviceProvider = new ServiceCollection()
+                    .AddSingleton<IConnectWiseService, ConnectWiseService>()
+                    .AddDbContext<ApplicationDbContext>(options => options.UseSqlServer(connectionString))
+                    .AddOptions()
+                    .Configure<ApplicationConfigurations>(_configuration.GetSection(nameof(ApplicationConfigurations)))
+                    .Configure<ConnectWiseConfigurations>(_configuration.GetSection(nameof(ConnectWiseConfigurations)))
+                    .Configure<GraphMailConfigurations>(_configuration.GetSection(nameof(GraphMailConfigurations)))
+                    .BuildServiceProvider();
+
+                //4.
+                CustomLogger.WriteInLog(fileLogPath,
+                    "Services configured successfully.", false);
+
+
+                logicConfigs = _serviceProvider.GetService<IOptions<ApplicationConfigurations>>().Value;
+                connectWiseConfigs = _serviceProvider.GetService<IOptions<ConnectWiseConfigurations>>().Value;
+                graphMailConfigs = _serviceProvider.GetService<IOptions<GraphMailConfigurations>>().Value;
+
+                tenantId = graphMailConfigs.TenantId;
+                clientId = graphMailConfigs.ClientId;
+                clientSecrete = graphMailConfigs.ClientSecret;
+
+                emailToMonitor = logicConfigs.EmailToMonitor;
+                folderToMonitorName = logicConfigs.MailFolderToMonitor;
+                folderToMoveToName = logicConfigs.MailFolderToMoveTo;
+                keyWord = logicConfigs.KeyWord;
+
+                _connectWiseService = _serviceProvider.GetService<IConnectWiseService>();
+
+                TokenCredentialOptions options = new TokenCredentialOptions
+                {
+                    AuthorityHost = AzureAuthorityHosts.AzurePublicCloud,
+                };
+
+                _credentials = new ClientSecretCredential(tenantId, clientId, clientSecrete, options);
+                _client = new GraphServiceClient(_credentials);
+
+                detailLogs = logicConfigs.ShowDetailedLog;
+
+                //5.
+                CustomLogger.WriteInLog(fileLogPath,
+                    "Application configured successfully.", false);
+            }
+            catch (Exception ex)
+            {
+                string configMessage = "Something went wrong trying co configure the application. Ensure that you are not missing any information in your appsetting.json file";
+                string trace = ex.StackTrace;
+
+                CustomLogger.WriteInLog(fileLogPath, configMessage, true);
+                CustomLogger.WriteInLog(fileErrorLogPath, trace, true);
+
+                
+                Console.WriteLine("Application will close in 10 seconds.");
+                Thread.Sleep(new TimeSpan(0, 100000, 0));
+                Environment.Exit(0); //Terminate application
+            }
+        }
+
         #endregion
     }
+
+    
 }

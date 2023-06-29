@@ -22,13 +22,24 @@ namespace Console_MicrosoftGraphEmail.Helpers
             }
         }
 
-        public static void WriteInLog(string logFilePath, string message)
+
+        public static void WriteInLog(string logFilePath, string message, bool error)
         {
             using (StreamWriter writer = new StreamWriter(logFilePath, true))
             {
                 DateTime dateTime = DateTime.UtcNow;
                 string log = $"[{dateTime.ToShortDateString()} | {dateTime.ToShortTimeString()}] {message}";
-                Console.WriteLine(log);
+
+                if (error)
+                {
+                    Console.ForegroundColor = ConsoleColor.Red;
+                    Console.WriteLine(log);
+                }
+                else
+                {
+                    Console.ForegroundColor = ConsoleColor.White;
+                    Console.WriteLine(log);
+                }
 
                 writer.WriteLine($"{log}");
             }
@@ -40,11 +51,11 @@ namespace Console_MicrosoftGraphEmail.Helpers
             {
                 DateTime dateTime = DateTime.UtcNow;
 
-                string toWrite = $"[{dateTime.ToShortDateString()} | {dateTime.ToShortTimeString()}] NEW LOG STARTED ";
+                string toWrite = $"[{dateTime.ToShortDateString()} | {dateTime.ToShortTimeString()}] New Log... ";
 
                 Console.WriteLine(toWrite);
                 writer.WriteLine($"{toWrite}");
-                writer.WriteLine($"");
+                //writer.WriteLine($"");
             }
         }
     }
