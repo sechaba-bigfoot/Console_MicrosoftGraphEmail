@@ -72,7 +72,7 @@ internal class Program
                 if(failedExecutionCOunt < 3)
                 {
                     await Task.Run(StartOrganisingEmails);
-                    Thread.Sleep(new TimeSpan(0, logicConfigs.IntervalRunsInMinutes, 0));
+                    Thread.Sleep(new TimeSpan(0, 0, logicConfigs.IntervalRunsInSeconds));
                 }
             }
             catch (Exception ex)
@@ -204,7 +204,10 @@ internal class Program
 
             try
             {
-                MessageCollectionResponse response = await _client.Users[userEmail].Messages.GetAsync();
+                MessageCollectionResponse response = await _client.Users[userEmail].Messages.GetAsync(options =>
+                {
+                    options.QueryParameters.Top = 1000;
+                });
                 if (response != null && response.Value != null)
                 {
                     messages = response.Value;
@@ -388,7 +391,7 @@ internal class Program
 
                 
                 Console.WriteLine("Application will close in 10 seconds.");
-                Thread.Sleep(new TimeSpan(0, 100000, 0));
+                Thread.Sleep(new TimeSpan(0, 0, 10000));
                 Environment.Exit(0); //Terminate application
             }
         }
