@@ -14,6 +14,8 @@ using Console_MicrosoftGraphEmail.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Graph.Models.ExternalConnectors;
 using System;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 
 internal class Program
 {
@@ -23,7 +25,7 @@ internal class Program
         string fileLogPath = Directory.GetCurrentDirectory() + "/log.txt";
         string fileErrorLogPath = Directory.GetCurrentDirectory() + "/Errors.txt";
 
-        CustomLogger.StartNewLog(fileLogPath);
+        CustomLoggerHelper.StartNewLog(fileLogPath);
 
         #region Global Properties
 
@@ -56,8 +58,7 @@ internal class Program
         MailFolder folderToMonitor = null;
         MailFolder folderToMoveTo = null;
         List<Message> messageList = new List<Message>();
-        List<CustomTicket> ticketList = new List<CustomTicket>();
-        Board boardToMonitor = null;
+        List<Ticket> ticketList = new List<Ticket>();
 
         #endregion
 
@@ -66,7 +67,7 @@ internal class Program
         //Logical loop..
         while (true)
         {
-            CustomLogger.WriteInLog(fileLogPath, "Loop running", false);
+            CustomLoggerHelper.WriteInLog(fileLogPath, "Loop running", false);
             try
             {
                 if(failedExecutionCOunt < 3)
@@ -79,9 +80,9 @@ internal class Program
             {
                 failedExecutionCOunt++;
 
-                CustomLogger.WriteInLog(fileLogPath, 
+                CustomLoggerHelper.WriteInLog(fileLogPath, 
                     $"Attempted to organise emailes, but failed. Attempts:[{failedExecutionCOunt}]", true);
-                CustomLogger.WriteInLog(fileErrorLogPath, $"{ex.Message}", true);
+                CustomLoggerHelper.WriteInLog(fileErrorLogPath, $"{ex.Message}", true);
             }
         }
 
@@ -89,22 +90,19 @@ internal class Program
 
         async void StartOrganisingEmails()
         {
-            CustomLogger.WriteNewLog(fileLogPath, "Now organising emails");
+            CustomLoggerHelper.WriteNewLog(fileLogPath, "Now organising emails");
 
             //1.Get all the information needed
             folderToMonitor = await GetMailFolderAsync(emailToMonitor, folderToMonitorName);
             folderToMoveTo = await GetMailFolderAsync(emailToMonitor, folderToMoveToName);
-
-            List<Board> boards = await _connectWiseService.GetServiceBoards();
-            boardToMonitor = boards.FirstOrDefault(b => b.name == connectWiseConfigs.ServiceBoard);
             messageList = await GetUserEmails(emailToMonitor);
 
 
             //Are there any problems?
             if (!AnyForProblems())
             {
-                CustomLogger.WriteInLog(fileLogPath, "Mannaged to get all the information needed to organise emails", false);
-                CustomLogger.WriteInLog(fileLogPath, $"Monitoring {messageList.Count} emails in => [{emailToMonitor}].", false);
+                CustomLoggerHelper.WriteInLog(fileLogPath, "Mannaged to get all the information needed to organise emails", false);
+                CustomLoggerHelper.WriteInLog(fileLogPath, $"Monitoring {messageList.Count} emails in => [{emailToMonitor}].", false);
 
                 //1. Loop through messages
                 foreach (Message message in messageList)
@@ -125,25 +123,25 @@ internal class Program
 
                         effectedEmailsCount++;
 
-                        CustomLogger.WriteInLog(fileLogPath, $"Match found for email with subject => [{newSubject}]. Moving on...", false);
+                        CustomLoggerHelper.WriteInLog(fileLogPath, $"Match found for email with subject => [{newSubject}]. Moving on...", false);
 
 
                     }
                     else
                     {
-                        CustomLogger.WriteInLog(fileLogPath, $"Found no matching tickets for email with subject => [{newSubject}]. Moving on...", false);
+                        CustomLoggerHelper.WriteInLog(fileLogPath, $"Found no matching tickets for email with subject => [{newSubject}]. Moving on...", false);
                     }
                    
                 }
 
                 string noProblemMessage = $"No problems, application ran successfully. Effected emails is => [{effectedEmailsCount}].";
-                CustomLogger.WriteInLog(fileLogPath, noProblemMessage, false);
+                CustomLoggerHelper.WriteInLog(fileLogPath, noProblemMessage, false);
             }
             else
             {
 
                 string problemMessage = $"Please address above problems before running application again.";
-                CustomLogger.WriteInLog(fileLogPath, problemMessage, false);
+                CustomLoggerHelper.WriteInLog(fileLogPath, problemMessage, false);
 
             }
 
@@ -216,7 +214,7 @@ internal class Program
             }
             catch (Exception ex)
             {
-                CustomLogger.WriteInLog(fileErrorLogPath, ex.Message, true);
+                CustomLoggerHelper.WriteInLog(fileErrorLogPath, ex.Message, true);
             }
 
             return messages;
@@ -242,14 +240,14 @@ internal class Program
             //email.
             List<string> emailCorrespondents = new List<string>
             {
-                //email.Sender?.EmailAddress.Address,
-                //email.From?.EmailAddress.Address
+                email.Sender?.EmailAddress.Address,
+                email.From?.EmailAddress.Address
             };
 
-            //foreach(Recipient cr in email.ToRecipients)
-            //{
-            //    emailCorrespondents.Add(cr.EmailAddress.Address);
-            //};
+            foreach (Recipient cr in email.ToRecipients)
+            {
+                emailCorrespondents.Add(cr.EmailAddress.Address);
+            };
             foreach (Recipient cr in email.CcRecipients)
             {
                 emailCorrespondents.Add(cr.EmailAddress.Address);
@@ -282,25 +280,19 @@ internal class Program
 
                 string folderMissing = $"(Problem) => Cannot find the folder {folderToMonitorName} in {emailToMonitor} email box.";
 
-                CustomLogger.WriteInLog(fileLogPath, folderMissing, true);
-                CustomLogger.WriteInLog(fileLogPath, $"(Solution) => Either change the folder name in your configurations to a folder that exists in the monitored email. If the promblems persisits contact support.", false);
+                CustomLoggerHelper.WriteInLog(fileLogPath, folderMissing, true);
+                CustomLoggerHelper.WriteInLog(fileLogPath, $"(Solution) => Either change the folder name in your configurations to a folder that exists in the monitored email. If the promblems persisits contact support.", false);
                 return true;
 
             }
 
             if (folderToMoveTo == null) 
             {
-                CustomLogger.WriteInLog(fileLogPath, $"(Problem) => Cannot find the folder {folderToMoveToName} in {emailToMonitor} email box.", true);
-                CustomLogger.WriteInLog(fileLogPath, $"(Solution) => Either change the folder name in your configurations to a folder that exists in the monitored email. If the promblems persisits contact support.", false);
+                CustomLoggerHelper.WriteInLog(fileLogPath, $"(Problem) => Cannot find the folder {folderToMoveToName} in {emailToMonitor} email box.", true);
+                CustomLoggerHelper.WriteInLog(fileLogPath, $"(Solution) => Either change the folder name in your configurations to a folder that exists in the monitored email. If the promblems persisits contact support.", false);
                 return true;
             }
 
-            if (boardToMonitor == null)
-            {
-                CustomLogger.WriteInLog(fileLogPath, $"(Problem) => Cannot find the service board {connectWiseConfigs.ServiceBoard}", false);
-                CustomLogger.WriteInLog(fileLogPath, $"(Solution) => Change the service board name in your configurations to one that exists in {connectWiseConfigs.Company}. If the promblems persisits contact support.", true);
-                return true;
-            }
             return false;
         }
 
@@ -312,19 +304,23 @@ internal class Program
         void ConfigureApplication()
         {
             //1.
-            CustomLogger.WriteInLog(fileLogPath, 
+            CustomLoggerHelper.WriteInLog(fileLogPath, 
                 "Setting up application configurations.", false);
 
             try
             {
 
-                _configuration = new ConfigurationBuilder()
-                    .SetBasePath(Directory.GetCurrentDirectory())
-                    .AddJsonFile("appsettings.json")
-                    .Build();
+                string jsonFilePath = Directory.GetCurrentDirectory() + "/appsettings.json";
+                using (FileStream fileStream = new FileStream(jsonFilePath, FileMode.Open, FileAccess.Read))
+                {
+                    _configuration = new ConfigurationBuilder()
+                   .SetBasePath(Directory.GetCurrentDirectory())
+                   .AddJsonStream(fileStream)
+                   .Build();
+                }
 
                 //2.
-                CustomLogger.WriteInLog(fileLogPath,
+                CustomLoggerHelper.WriteInLog(fileLogPath,
                     "Configurations built successfuly.", false);
 
                 connectionString = GetConnectionString();
@@ -333,22 +329,21 @@ internal class Program
                 if (!string.IsNullOrEmpty(connectionString))
                 {
                     //3.
-                    CustomLogger.WriteInLog(fileLogPath,
+                    CustomLoggerHelper.WriteInLog(fileLogPath,
                         "Database connection string retrieved.", false);
                 }
-         
 
                 _serviceProvider = new ServiceCollection()
-                    .AddSingleton<IConnectWiseService, ConnectWiseService>()
-                    .AddDbContext<ApplicationDbContext>(options => options.UseSqlServer(connectionString))
-                    .AddOptions()
-                    .Configure<ApplicationConfigurations>(_configuration.GetSection(nameof(ApplicationConfigurations)))
-                    .Configure<ConnectWiseConfigurations>(_configuration.GetSection(nameof(ConnectWiseConfigurations)))
-                    .Configure<GraphMailConfigurations>(_configuration.GetSection(nameof(GraphMailConfigurations)))
-                    .BuildServiceProvider();
+               .AddSingleton<IConnectWiseService, ConnectWiseService>()
+               .AddDbContext<ApplicationDbContext>(options => options.UseSqlServer(connectionString))
+               .AddOptions()
+               .Configure<ApplicationConfigurations>(_configuration.GetSection(nameof(ApplicationConfigurations)))
+               .Configure<ConnectWiseConfigurations>(_configuration.GetSection(nameof(ConnectWiseConfigurations)))
+               .Configure<GraphMailConfigurations>(_configuration.GetSection(nameof(GraphMailConfigurations)))
+               .BuildServiceProvider();
 
                 //4.
-                CustomLogger.WriteInLog(fileLogPath,
+                CustomLoggerHelper.WriteInLog(fileLogPath,
                     "Services configured successfully.", false);
 
 
@@ -378,7 +373,7 @@ internal class Program
                 detailLogs = logicConfigs.ShowDetailedLog;
 
                 //5.
-                CustomLogger.WriteInLog(fileLogPath,
+                CustomLoggerHelper.WriteInLog(fileLogPath,
                     "Application configured successfully.", false);
             }
             catch (Exception ex)
@@ -386,8 +381,8 @@ internal class Program
                 string configMessage = "Something went wrong trying co configure the application. Ensure that you are not missing any information in your appsetting.json file";
                 string trace = ex.StackTrace;
 
-                CustomLogger.WriteInLog(fileLogPath, configMessage, true);
-                CustomLogger.WriteInLog(fileErrorLogPath, trace, true);
+                CustomLoggerHelper.WriteInLog(fileLogPath, configMessage, true);
+                CustomLoggerHelper.WriteInLog(fileErrorLogPath, trace, true);
 
                 
                 Console.WriteLine("Application will close in 10 seconds.");

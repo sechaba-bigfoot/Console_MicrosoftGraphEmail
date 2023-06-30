@@ -15,7 +15,7 @@ namespace Console_MicrosoftGraphEmail.Data
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
-            modelBuilder.Entity<CustomTicket>(entity =>
+            modelBuilder.Entity<Ticket>(entity =>
             {
                 entity.HasNoKey();
                 entity.ToView(customTicketsViewOrTableName);
@@ -23,7 +23,7 @@ namespace Console_MicrosoftGraphEmail.Data
             base.OnModelCreating(modelBuilder);
         }
 
-        public DbSet<CustomTicket> Tickets { get; set; }
+        public DbSet<Ticket> Tickets { get; set; }
 
     }
 }

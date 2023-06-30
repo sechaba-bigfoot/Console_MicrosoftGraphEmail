@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace Console_MicrosoftGraphEmail.Helpers
 {
-    public static class CustomLogger
+    public static class CustomLoggerHelper
     {
         public static void WriteNewLog(string logFilePath, string message)
         {
@@ -41,6 +41,7 @@ namespace Console_MicrosoftGraphEmail.Helpers
                     Console.WriteLine(log);
                 }
 
+                Console.ForegroundColor = ConsoleColor.White;
                 writer.WriteLine($"{log}");
             }
         }
