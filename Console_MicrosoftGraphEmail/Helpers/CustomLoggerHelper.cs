@@ -9,16 +9,19 @@ namespace Console_MicrosoftGraphEmail.Helpers
 {
     public static class CustomLoggerHelper
     {
-        public static void WriteNewLog(string logFilePath, string message)
+        public static void LogHeartBeat(string logFilePath)
         {
             using (StreamWriter writer = new StreamWriter(logFilePath, true))
             {
                 DateTime dateTime = DateTime.UtcNow;
 
-                string log = $"[{dateTime.ToShortDateString()} | {dateTime.ToShortTimeString()}] {message}";
-                Console.WriteLine(log);
+                Console.ForegroundColor = ConsoleColor.Green;
+                string log = $"[{dateTime.ToShortDateString()} | {dateTime.ToShortTimeString()}] Appliaction is still sunning  ♥♥♥♥♥♥♥♥♥♥♥♥";
+                //Console.WriteLine(log);
 
                 writer.WriteLine(log);
+                Console.ForegroundColor = ConsoleColor.White;
+
             }
         }
 

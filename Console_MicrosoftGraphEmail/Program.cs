@@ -12,10 +12,6 @@ using Console_MicrosoftGraphEmail.Helpers;
 using System.Text.RegularExpressions;
 using Console_MicrosoftGraphEmail.Data;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Graph.Models.ExternalConnectors;
-using System;
-using System.Text.Json;
-using System.Text.Json.Serialization;
 
 internal class Program
 {
@@ -23,6 +19,7 @@ internal class Program
     {
 
         string fileLogPath = Directory.GetCurrentDirectory() + "/log.txt";
+        string heartBeatLogPath = Directory.GetCurrentDirectory() + "/heartbeat.txt";
         string fileErrorLogPath = Directory.GetCurrentDirectory() + "/Errors.txt";
 
         CustomLoggerHelper.StartNewLog(fileLogPath);
@@ -64,6 +61,10 @@ internal class Program
 
         ConfigureApplication();
 
+        //Congfigure befor you start
+        Thread thread = new Thread(RunApplicationHeartBeat);
+        thread.Start();
+
         //Logical loop..
         while (true)
         {
@@ -73,6 +74,8 @@ internal class Program
                 if(failedExecutionCOunt < 3)
                 {
                     await Task.Run(StartOrganisingEmails);
+                    CustomLoggerHelper.WriteInLog(fileLogPath, $"Next interval in: {logicConfigs.IntervalRunsInSeconds} seconds.", false);
+
                     Thread.Sleep(new TimeSpan(0, 0, logicConfigs.IntervalRunsInSeconds));
                 }
             }
@@ -84,13 +87,16 @@ internal class Program
                     $"Attempted to organise emailes, but failed. Attempts:[{failedExecutionCOunt}]", true);
                 CustomLoggerHelper.WriteInLog(fileErrorLogPath, $"{ex.Message}", true);
             }
+
+            CustomLoggerHelper.WriteInLog(fileLogPath, "Loop just ended.", false);
+            CustomLoggerHelper.LogHeartBeat(heartBeatLogPath);
         }
 
         #region Methods
 
         async void StartOrganisingEmails()
         {
-            CustomLoggerHelper.WriteNewLog(fileLogPath, "Now organising emails");
+            CustomLoggerHelper.WriteInLog(fileLogPath, "Now organising emails", false);
 
             //1.Get all the information needed
             folderToMonitor = await GetMailFolderAsync(emailToMonitor, folderToMonitorName);
@@ -391,8 +397,16 @@ internal class Program
             }
         }
 
+        void RunApplicationHeartBeat()
+        {
+            while (true)
+            {
+                CustomLoggerHelper.LogHeartBeat(heartBeatLogPath);
+                Thread.Sleep(new TimeSpan(0, 0, 10));
+            }
+        }
         #endregion
     }
 
-    
+
 }

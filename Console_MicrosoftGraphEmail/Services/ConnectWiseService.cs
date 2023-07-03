@@ -13,7 +13,6 @@ namespace Console_MicrosoftGraphEmail.Services
             _dbContext = dbContext;
         }
 
-
         public Ticket GetServiceTicket
             (string serviveBoard, string Emailsubject, List<string> emailcorrespondents)
         {
