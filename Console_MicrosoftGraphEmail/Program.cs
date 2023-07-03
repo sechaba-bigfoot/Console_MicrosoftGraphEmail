@@ -61,7 +61,7 @@ internal class Program
 
         ConfigureApplication();
 
-        //Congfigure befor you start
+        //Congfigure app before you start heartbeat
         Thread thread = new Thread(RunApplicationHeartBeat);
         thread.Start();
 
@@ -74,8 +74,6 @@ internal class Program
                 if(failedExecutionCOunt < 3)
                 {
                     await Task.Run(StartOrganisingEmails);
-                    CustomLoggerHelper.WriteInLog(fileLogPath, $"Next interval in: {logicConfigs.IntervalRunsInSeconds} seconds.", false);
-
                     Thread.Sleep(new TimeSpan(0, 0, logicConfigs.IntervalRunsInSeconds));
                 }
             }
@@ -123,7 +121,7 @@ internal class Program
                         //3. Rename the email to a suited convetion.
                         //4. Update it in the Graph Mail API.
                         //5. Move email to specified folder.
-                        message.Subject = $"Existing ticket#{ticket.ServiceRecordId} email - [{ticket.Summary}]";
+                        message.Subject = $"Existing ticket#{ticket.SR_Service_RecID} email - [{ticket.Summary}]";
                         await UpdateMessage(emailToMonitor, message);
                         await MoveMessageToFolder(emailToMonitor, message.Id, folderToMoveTo.Id);
 
@@ -151,6 +149,7 @@ internal class Program
 
             }
 
+            CustomLoggerHelper.WriteInLog(fileLogPath, $"Next interval in: {logicConfigs.IntervalRunsInSeconds} seconds.", false);
         }
 
         async Task<MailFolder> GetMailFolderAsync(string email, string mailFolder)
